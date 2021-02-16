@@ -22,8 +22,8 @@ gem 'simple_form'
 gem 'font-awesome-sass', '~> 5.6.1'
 gem 'font-awesome-rails'
 gem 'excon'
-gem 'aws-sdk'
-
+gem 'multipart-post', '~> 2.0'
+gem "typhoeus"
 # Use Redis adapter to run Action Cable in production
 # gem 'redis', '~> 4.0'
 # Use Active Model has_secure_password

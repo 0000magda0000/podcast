@@ -1,5 +1,5 @@
-<%= simple_form_for @episode do |f| %>
+<%= simple_form_for@episode do |f| %>
   <%= f.input :title %>
   <%= f.input :audio, as: :file, input_html: { data: { direct_upload_url: rails_direct_uploads_url } } %>
-  <%= f.submit "Submit review", class: "btn btn-primary" %>
+  <%= f.submit "Post", class: "btn btn-primary" %>
 <% end %>

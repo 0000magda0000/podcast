@@ -3,7 +3,7 @@ require 'open-uri'
 require 'rubygems'
 require 'excon'
 require 'net/http'
-require 'aws-sdk-s3'
+require 'net/http/post/multipart'
 
 class EpisodesController < ApplicationController
   def index
@@ -18,41 +18,32 @@ class EpisodesController < ApplicationController
     @episode = Episode.new
   end
 
-
-
   def create
     @episode = Episode.new(episode_params)
     @episode.save!
 
     # Create an Episode on Podigee
     response_create_episode = create_an_episode(@episode.title)
-    if response_create_episode.status == 200
 
-      JSON.parse(response_create_episode.body).each do |json|
-        @id = json.first['id']
-      end
+    JSON.parse(response_create_episode.body).each do |json|
+      @id = json.first['id']
+    end
 
     # Generate an Upload URL from AWS
-      response_upload_url = generate_upload_url
-      if response_upload_url.status == 200
+    response_upload_url = generate_upload_url
 
-        @upload_url = JSON.parse(response_upload_url.body)['upload_url']
-        @content_type = JSON.parse(response_upload_url.body)['content_type']
-        @file_url = JSON.parse(response_upload_url.body)['file_url']
-        @file = Rails.application.routes.url_helpers.rails_blob_path(@episode.audio, only_path: true)
+    @upload_url = JSON.parse(response_upload_url.body)['upload_url']
+    @content_type = JSON.parse(response_upload_url.body)['content_type']
+    @file_url = JSON.parse(response_upload_url.body)['file_url']
+    @file = ActiveStorage::Blob.service.send(:path_for, @episode.audio.key)
 
-        # Upload Audio to AWS
-        if upload_audio(@upload_url, @file, @content_type).status == 200
+    # Upload Audio to AWS doesn't work :(
+    upload_audio(@upload_url, @file, @content_type)
 
-          # Create Production with Podigee
-          production_url = create_production(@file_url, @id)
-          if production_url.status == 200
-            @content_type = @episode.audio.content_type
-            @file_url = JSON.parse(production_url.body)['file_url']
-          end
-        end
-      end
-    end
+    # Create Production with Podigee
+    production_url = create_production(@file_url, @id)
+    @content_type = @episode.audio.content_type
+    @file_production_url = JSON.parse(production_url.body)['file_url']
 
     # Start Procution with Podigee an redirect if successful
     respond_to do |format|
@@ -72,7 +63,7 @@ class EpisodesController < ApplicationController
     params.require(:episode).permit(:title, :subtitle, :description, :cover_image, :shownotes, :audio)
   end
 
-    def create_an_episode(title)
+  def create_an_episode(title)
     Excon.post(
       "https://app.podigee.com/api/v1/episodes",
       body: {
@@ -97,25 +88,15 @@ class EpisodesController < ApplicationController
   end
 
   def upload_audio(upload_url, file, content_type)
-    boundary = "AaB03x"
-    uri = URI.parse(upload_url)
-    post_body = []
-    post_body << "--#{boundary}\r\n"
-    post_body << "Content-Disposition: form-data; name=\"datafile\"; filename=\"#{File.basename(file)}\"\r\n"
-    post_body << "Content-Type: text/plain\r\n"
-    post_body << "\r\n"
-    post_body << File.read(file)
-    post_body << "\r\n--#{boundary}--\r\n"
-
-    http = Net::HTTP.new(uri.host, uri.port)
-    request = Net::HTTP::Post.new(uri.request_uri)
-    request.body = post_body.join
-    request["Content-Type"] = "#{content_type}, boundary=#{boundary}"
-
-    http.request(request)
+    Typhoeus::Request.new(
+      upload_url,
+      method: :put,
+      body: File.open(file) { |io| io.read },
+      headers: { 'Content-Type' => content_type }
+    )
   end
 
-  def create_production(file_url, id)
+  def create_production(file_production_url, id)
     Excon.post(
       "https://app.podigee.com/api/v1/productions",
       headers: {
@@ -124,7 +105,7 @@ class EpisodesController < ApplicationController
       },
       body: {
         episode_id: id,
-        files: [{ "url" => file_url }]
+        files: [{ "url" => file_production_url }]
       }.to_json
     )
   end
