@@ -1,0 +1,32 @@
+<div class="container">
+  <h1><%= @episode.title %></h1>
+  <div class="image">
+    <%= image_tag @episode.cover_image if !@episode.cover_image.nil? %>
+  </div>
+  <% unless @episode.permalink.nil? %>
+    <div class="player">
+      <%= @episode.permalink.html_safe %>
+    </div>
+  <% end %>
+  <div class="subtitle">
+    <%= @episode.subtitle %>
+  </div>
+  <div class="description">
+    <%= strip_tags(@episode.description) %>
+  </div>
+  <% unless @episode.duration.nil? %>
+    <div class="duration">
+      Duration: <%= Time.at(@episode.duration).utc.strftime("%H:%M:%S") %>
+    </div>
+  <% end %>
+  <% unless @episode.published_at.nil? %>
+  <div class="date">
+    Published on: <%= @episode.published_at.to_date %>
+  </div>
+  <% end %>
+  <div class="shownotes">
+    <%= strip_tags(@episode.shownotes) %>
+  </div>
+</div>
+
+

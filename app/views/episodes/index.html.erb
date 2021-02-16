@@ -1,0 +1,9 @@
+<% @episodes.each do |episode| %>
+  <div class="card-category" style="background-image: linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)), url(<%= episode.cover_image if !episode.cover_image.nil? %>)">
+    <%= link_to episode_path(episode) do %>
+      <h1><%= episode.title %></h1>
+    <% end %>
+  </div>
+<% end %>
+
+
